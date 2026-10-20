@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Recovery report {{ r.run.id[:8] }} - {{ r.run.project.name }}</title>
+<style>
+  :root {
+    --bg: #f6f3ea; --panel: #fbf9f3; --ink: #1b1e20; --muted: #56616a; --rule: #d9d4c5; --rule-strong: #1b1e20;
+    --pass: #1b6b38; --pass-bg: #e1efe2; --warn: #7a4e00; --warn-bg: #f8e8c4; --fail: #9c231c; --fail-bg: #f6d9d5;
+    --idle: #3b4852; --idle-bg: #e3e7ea;
+    --mono: ui-monospace, "IBM Plex Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+  main { max-width: 980px; margin: 0 auto; padding: 40px 28px 72px; }
+  header.top { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid var(--rule-strong); padding-bottom: 12px; }
+  .brand { font-weight: 700; letter-spacing: .02em; }
+  .muted { color: var(--muted); }
+  .mono { font-family: var(--mono); font-size: 13px; }
+  h1 { font-size: 30px; line-height: 1.15; margin: 28px 0 6px; letter-spacing: -.01em; }
+  h2 { font-size: 17px; margin: 40px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--rule); }
+  .verdict { margin: 18px 0 0; padding: 16px 18px; border-left: 6px solid var(--idle); background: var(--idle-bg); }
+  .verdict.SUCCEEDED { border-color: var(--pass); background: var(--pass-bg); }
+  .verdict.FAILED { border-color: var(--fail); background: var(--fail-bg); }
+  .verdict.NEEDS_ATTENTION, .verdict.NEEDS_CLEANUP { border-color: var(--warn); background: var(--warn-bg); }
+  .verdict p { margin: 4px 0 0; }
+  dl.facts { display: grid; grid-template-columns: 190px 1fr; gap: 6px 18px; margin: 0; }
+  dl.facts dt { color: var(--muted); } dl.facts dd { margin: 0; overflow-wrap: anywhere; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 600; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--rule-strong); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .chip { display: inline-block; padding: 1px 8px; font-size: 12px; font-weight: 600; border-radius: 3px; white-space: nowrap; }
+  .chip.PASS, .chip.MET, .chip.SUCCEEDED, .chip.DONE { color: var(--pass); background: var(--pass-bg); }
+  .chip.FAIL, .chip.MISSED, .chip.FAILED { color: var(--fail); background: var(--fail-bg); }
+  .chip.INCONCLUSIVE, .chip.UNKNOWN, .chip.NEEDS_ATTENTION, .chip.NEEDS_CLEANUP { color: var(--warn); background: var(--warn-bg); }
+  .chip.SKIPPED, .chip.NOT_CONFIGURED, .chip.CANCELLED, .chip.PENDING, .chip.RUNNING { color: var(--idle); background: var(--idle-bg); }
+  .scroll { overflow-x: auto; }
+  ul.plain { margin: 6px 0; padding-left: 20px; }
+  footer { margin-top: 48px; padding-top: 14px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 13px; }
+  @media print { body { background: #fff; } main { padding: 0; } tr { break-inside: avoid; } }
+  @media (max-width: 640px) { dl.facts { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <header class="top"><span class="brand">AFTERSTATE</span><span class="muted">Recovery report</span></header>
+
+  <h1>{{ r.headline }}</h1>
+  <div class="mono muted">Run {{ r.run.id }}{% if r.run.lab_scenario %} &middot; Recovery Lab scenario {{ r.run.lab_scenario }}{% endif %}</div>
+
+  <div class="verdict {{ r.run.state }}">
+    <strong>{{ r.run.state | replace("_", " ") | capitalize }}</strong>
+    {% if r.run.summary %}<p>{{ r.run.summary }}</p>{% endif %}
+    {% if r.run.failure_class %}<p class="mono">{{ r.run.failure_class }}{% if r.run.failure_message %}: {{ r.run.failure_message }}{% endif %}</p>{% endif %}
+  </div>
+
+  <h2>Run</h2>
+  <dl class="facts">
+    <dt>Project</dt><dd>{{ r.run.project.name }}</dd>
+    <dt>Trigger</dt><dd>{{ r.run.trigger }}{% if r.run.attempt > 1 %} (attempt {{ r.run.attempt }}){% endif %}</dd>
+    <dt>Queued</dt><dd class="mono">{{ r.run.queued_at or "-" }}</dd>
+    <dt>Started</dt><dd class="mono">{{ r.run.started_at or "-" }}</dd>
+    <dt>Finished</dt><dd class="mono">{{ r.run.finished_at or "-" }}</dd>
+    <dt>Report generated</dt><dd class="mono">{{ r.generated_at }}</dd>
+  </dl>
+
+  <h2>Backup artifact</h2>
+  <dl class="facts">
+    <dt>Name</dt><dd>{{ r.artifact.name }}</dd>
+    <dt>Artifact ID</dt><dd class="mono">{{ r.artifact.id }}</dd>
+    <dt>SHA-256</dt><dd class="mono">{{ r.artifact.sha256 }}</dd>
+    <dt>Size</dt><dd>{{ r.artifact.size_bytes | human_bytes }}</dd>
+    <dt>Format</dt><dd>{{ r.artifact.format }}{% if r.artifact.source_database %} &middot; source database <span class="mono">{{ r.artifact.source_database }}</span>{% endif %}</dd>
+    <dt>Taken on</dt><dd>PostgreSQL {{ r.artifact.dump_server_version or "unknown" }}</dd>
+    <dt>Backup created</dt><dd class="mono">{{ r.artifact.backup_created_at or "not declared" }}</dd>
+  </dl>
+
+  <h2>Recovery objectives</h2>
+  {% if r.objectives %}
+  <div class="scroll"><table>
+    <thead><tr><th>Objective</th><th>Status</th><th class="num">Target</th><th class="num">Measured</th><th>Basis and detail</th></tr></thead>
+    <tbody>
+    {% for name, o in r.objectives.items() %}
+      <tr><td>{{ name }}</td><td><span class="chip {{ o.status }}">{{ o.status | replace("_", " ") }}</span></td>
+        <td class="num">{{ (o.target_seconds ~ " s") if o.target_seconds is not none else "-" }}</td>
+        <td class="num">{{ (o.measured_seconds ~ " s") if o.measured_seconds is not none else "-" }}</td>
+        <td>{{ o.detail }}{% if o.basis %}<div class="muted">Basis: {{ o.basis }}</div>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody></table></div>
+  {% else %}<p class="muted">No objectives were evaluated for this run.</p>{% endif %}
+
+  <h2>Stages</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Stage</th><th>Result</th><th class="num">Duration</th><th>Notes</th></tr></thead>
+    <tbody>
+    {% for st in r.stages %}
+      <tr><td>{{ st.name | replace("_", " ") }}</td><td><span class="chip {{ st.state }}">{{ st.state }}</span></td>
+        <td class="num">{{ st.duration_ms | duration }}</td><td>{{ st.error or st.details.get("reason", "") }}</td></tr>
+    {% endfor %}
+    </tbody></table></div>
+
+  <h2>Measured metrics</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Metric</th><th class="num">Value</th></tr></thead>
+    <tbody>
+    {% for key, value in r.metrics.items() if value is not mapping and value is not none %}
+      <tr><td>{{ key | replace("_", " ") }}</td><td class="num mono">{{ value }}</td></tr>
+    {% endfor %}
+    </tbody></table></div>
+
+  <h2>Verification checks</h2>
+  <p class="muted">{{ r.summary.counts.PASS }} passed &middot; {{ r.summary.counts.FAIL }} failed &middot; {{ r.summary.counts.INCONCLUSIVE }} inconclusive &middot; {{ r.summary.counts.SKIPPED }} skipped.
+     {% if r.summary.required_not_passing %}<strong>{{ r.summary.required_not_passing }} required check(s) did not pass.</strong>{% endif %}</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Result</th><th>Check</th><th>Detail</th><th>Expected</th><th>Actual</th><th>Coverage</th></tr></thead>
+    <tbody>
+    {% for c in r.checks %}
+      <tr><td><span class="chip {{ c.outcome }}">{{ c.outcome }}</span>{% if not c.required %}<div class="muted">optional</div>{% endif %}</td>
+        <td>{{ c.name }}<div class="muted mono">{{ c.key }}</div></td><td>{{ c.message }}</td>
+        <td class="mono">{{ c.expected | compact }}</td><td class="mono">{{ c.actual | compact }}</td><td>{{ c.coverage or "-" }}</td></tr>
+    {% endfor %}
+    </tbody></table></div>
+
+  {% if r.warnings %}<h2>Tool warnings and errors</h2><ul class="plain mono">{% for w in r.warnings %}<li>{{ w }}</li>{% endfor %}</ul>{% endif %}
+
+  <h2>Cleanup</h2>
+  <p>Cleanup state: <span class="chip {{ r.cleanup.state }}">{{ r.cleanup.state | replace("_", " ") }}</span></p>
+  {% if r.cleanup.tasks %}<div class="scroll"><table><thead><tr><th>Resource</th><th>State</th><th class="num">Attempts</th><th>Error</th></tr></thead><tbody>
+    {% for t in r.cleanup.tasks %}<tr><td>{{ t.resource_type }} <span class="mono">{{ t.resource }}</span></td><td><span class="chip {{ t.state }}">{{ t.state }}</span></td><td class="num">{{ t.attempts }}</td><td>{{ t.error or "" }}</td></tr>{% endfor %}
+  </tbody></table></div>{% endif %}
+
+  <h2>Software</h2>
+  <dl class="facts">
+    <dt>AFTERSTATE</dt><dd class="mono">{{ r.software.afterstate }}</dd>
+    <dt>PostgreSQL (restore)</dt><dd class="mono">{{ r.software.postgresql or "-" }}</dd>
+    <dt>pg_restore</dt><dd class="mono">{{ r.software.pg_restore or "-" }}</dd>
+    <dt>Isolation</dt><dd>{{ r.software.network or "-" }}</dd>
+  </dl>
+
+  {% if r.evidence %}<h2>Evidence</h2><div class="scroll"><table><thead><tr><th>Item</th><th>SHA-256</th><th class="num">Size</th></tr></thead><tbody>
+    {% for e in r.evidence %}<tr><td>{{ e.kind }}</td><td class="mono">{{ e.sha256 }}</td><td class="num">{{ e.size_bytes | human_bytes }}</td></tr>{% endfor %}
+  </tbody></table></div>{% endif %}
+
+  <h2>What this report does not show</h2>
+  <ul class="plain">{% for l in r.limitations %}<li>{{ l }}</li>{% endfor %}</ul>
+
+  <footer>Generated by AFTERSTATE {{ version }}. Schema {{ r.schema }}. Prove recovery before it matters.</footer>
+</main>
+</body>
+</html>

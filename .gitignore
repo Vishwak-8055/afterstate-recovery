@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+# Local state (never commit)
+.env
+.env.*
+!.env.example
+var/
+*.log
+/test-results/
+/playwright-report/
