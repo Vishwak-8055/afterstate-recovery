@@ -1,0 +1,116 @@
+# AFTERSTATE: API, worker, web, PostgreSQL. NOT executed in the environment where this repository was built
+# (no Docker there); see docs/limitations.md. Validate with: docker compose config -q
+name: afterstate
+
+x-app-env: &app-env
+  AFTERSTATE_ENVIRONMENT: production
+  AFTERSTATE_DATABASE_URL: postgresql+psycopg://afterstate:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/afterstate
+  AFTERSTATE_SESSION_COOKIE_SECURE: "true"
+  AFTERSTATE_ALLOWED_ORIGINS: '["${PUBLIC_ORIGIN:-http://localhost:3000}"]'
+  AFTERSTATE_LOG_JSON: "true"
+
+x-hardening: &hardening
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 512
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: afterstate
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: afterstate
+    volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U afterstate -d afterstate"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    build: ./backend
+    command: ["afterstate", "migrate"]
+    environment: *app-env
+    depends_on: { db: { condition: service_healthy } }
+    networks: [internal]
+    restart: "no"
+    <<: *hardening
+
+  api:
+    build: ./backend
+    environment: *app-env
+    volumes: [artifacts:/var/lib/afterstate/artifacts]
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    networks: [internal, edge]
+    read_only: true
+    # The Recovery Lab builds its small fixture clusters inside the API process, which needs scratch space.
+    tmpfs:
+      - /tmp
+      - /var/lib/afterstate/scratch:uid=10001,gid=10001,mode=0700,size=1g
+    mem_limit: 2g
+    restart: unless-stopped
+    <<: *hardening
+
+  # The worker restores untrusted backups. It is on the internal network only (no internet egress),
+  # runs as a non-root user with a read-only root filesystem and no capabilities.
+  # Webhook notifications are delivered by the worker: to enable them, also attach it to `edge`.
+  worker:
+    build: ./backend
+    command: ["python", "-m", "afterstate.worker", "run"]
+    environment: *app-env
+    volumes:
+      - artifacts:/var/lib/afterstate/artifacts
+      - scratch:/var/lib/afterstate/scratch
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    networks: [internal]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 4g
+    cpus: 2
+    restart: unless-stopped
+    <<: *hardening
+
+  web:
+    build:
+      context: ./web
+      args:
+        AFTERSTATE_API_URL: http://api:8000
+    depends_on: [api]
+    ports: ["${WEB_PORT:-3000}:3000"]
+    networks: [edge]
+    read_only: true
+    tmpfs: [/tmp, "/app/.next/cache"]
+    mem_limit: 512m
+    restart: unless-stopped
+    <<: *hardening
+
+  # Optional TLS termination that sends /api straight to the API (no body-size limit from the Next.js proxy).
+  proxy:
+    image: caddy:2
+    profiles: [proxy]
+    environment: { PUBLIC_HOST: "${PUBLIC_HOST:-localhost}" }
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    ports: ["80:80", "443:443"]
+    depends_on: [api, web]
+    networks: [edge]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  artifacts:
+  scratch:
+  caddy_data:
+
+networks:
+  internal:
+    internal: true
+  edge: {}

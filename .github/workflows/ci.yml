@@ -1,0 +1,104 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request: {}
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: backend/requirements-dev.lock }
+      - name: PostgreSQL 16 server and client tools (the recovery engine runs real restores)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16 postgresql-client-16
+          sudo systemctl stop postgresql || true
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+      - name: Install
+        working-directory: backend
+        run: pip install -r requirements-dev.lock && pip install --no-deps -e .
+      - name: Lint and format
+        working-directory: backend
+        run: ruff check afterstate tests scripts && ruff format --check afterstate tests scripts
+      - name: Type check (strict)
+        working-directory: backend
+        run: mypy afterstate
+      - name: Migration validation
+        working-directory: backend
+        run: python scripts/check_migrations.py
+      - name: Tests (unit, integration with real PostgreSQL, API)
+        working-directory: backend
+        run: pytest -q
+
+  web:
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-24.04
+    needs: [backend, web]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: backend/requirements-dev.lock }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - name: PostgreSQL 16
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-16 postgresql-client-16
+          sudo systemctl stop postgresql || true
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+      - run: pip install -r backend/requirements-dev.lock && pip install --no-deps -e backend
+      - working-directory: web
+        run: npm ci && npx playwright install --with-deps chromium && npm run build
+      - name: Playwright against the live stack
+        run: |
+          export E2E_DUMP="$(python scripts/make_fixture_dump.py)"
+          ./scripts/e2e.sh
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: e2e-diagnostics, path: "web/test-results\n/tmp/afterstate-e2e", if-no-files-found: ignore }
+
+  docker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose file is valid
+        run: POSTGRES_PASSWORD=ci-placeholder docker compose config -q
+      - name: Build API/worker image
+        run: docker build -t afterstate-backend:ci backend
+      - name: Build web image
+        run: docker build -t afterstate-web:ci web
+
+  security:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Python dependency vulnerabilities
+        run: pip install pip-audit==2.10.1 && pip-audit -r backend/requirements.lock --no-deps --disable-pip
+      - name: npm dependency vulnerabilities (runtime, high and above)
+        working-directory: web
+        run: npm ci --ignore-scripts && npm audit --omit=dev --audit-level=high
+      - name: Secret scan (full history)
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source /repo --no-banner --redact

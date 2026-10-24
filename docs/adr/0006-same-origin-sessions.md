@@ -1,0 +1,3 @@
+# ADR 0006: Same-origin API with server-side sessions and CSRF protection
+
+**Decision:** the browser talks to `/api` on its own origin (Next.js rewrite in development, the reverse proxy in production). Sessions are random 256-bit tokens in `HttpOnly`, `SameSite=Lax` cookies; only the hash is stored; sessions are revocable. Mutations require an `X-CSRF-Token` equal to the session's token and an acceptable `Origin`. **Why:** no tokens in JavaScript storage, no CORS surface by default, immediate revocation. **Consequences:** the web app and API must share a site; non-browser clients send the cookie and header like the tests do.
