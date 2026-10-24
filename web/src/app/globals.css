@@ -1,0 +1,33 @@
+@import "tailwindcss";
+@import "@fontsource-variable/schibsted-grotesk/index.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "../styles/tokens.css";
+
+@theme inline {
+  --font-sans: "Schibsted Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-bg: var(--bg); --color-s1: var(--s1); --color-s2: var(--s2); --color-s3: var(--s3);
+  --color-line: var(--line); --color-line-strong: var(--line-strong);
+  --color-ink: var(--text); --color-muted: var(--muted); --color-faint: var(--faint);
+  --color-accent: var(--accent); --color-accent-ink: var(--accent-ink); --color-focus: var(--focus);
+  --color-pass: var(--pass); --color-pass-bg: var(--pass-bg); --color-pass-line: var(--pass-line);
+  --color-warn: var(--warn); --color-warn-bg: var(--warn-bg); --color-warn-line: var(--warn-line);
+  --color-fail: var(--fail); --color-fail-bg: var(--fail-bg); --color-fail-line: var(--fail-line);
+  --color-idle: var(--idle); --color-idle-bg: var(--idle-bg); --color-idle-line: var(--idle-line);
+  --color-active: var(--active); --color-active-bg: var(--active-bg); --color-active-line: var(--active-line);
+}
+
+html { background: var(--bg); color: var(--text); font-family: var(--font-sans); font-size: 15px; -webkit-font-smoothing: antialiased; }
+body { min-height: 100dvh; line-height: 1.5; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+::selection { background: var(--focus); color: var(--bg); }
+.mono { font-family: var(--font-mono); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+.tnum { font-variant-numeric: tabular-nums; }
+dialog { color: var(--text); }
+dialog::backdrop { background: rgba(8, 10, 12, 0.62); }
+@keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes sweep { from { background-position: 0 0; } to { background-position: 28px 0; } }
+.rise { animation: rise 160ms ease-out both; }
+.working { background-image: repeating-linear-gradient(115deg, transparent 0 8px, rgba(255,255,255,.07) 8px 14px); background-size: 28px 100%; animation: sweep 900ms linear infinite; }
+@media (prefers-reduced-motion: reduce) { .rise, .working { animation: none; } * { scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }

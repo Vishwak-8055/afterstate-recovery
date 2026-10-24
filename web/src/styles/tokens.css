@@ -1,0 +1,28 @@
+/* AFTERSTATE design tokens. Neutral surfaces carry the brand; colour is reserved for state.
+   Green means verified, amber means not verified or degraded, red means failed, steel blue means in progress. */
+:root, [data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #14171a; --s1: #1a1e22; --s2: #21262b; --s3: #2a3036;
+  --line: #2c333a; --line-strong: #434c56;
+  --text: #ece9df; --muted: #a3acb4; --faint: #8a949d;
+  --accent: #ece9df; --accent-ink: #14171a; --focus: #9db7cc;
+  --pass: #7fd48c; --pass-bg: #16281c; --pass-line: #2d5a38;
+  --warn: #e8b44d; --warn-bg: #2b2310; --warn-line: #5f4a17;
+  --fail: #f27d74; --fail-bg: #2c1816; --fail-line: #6a2e29;
+  --idle: #a3adb6; --idle-bg: #20262b; --idle-line: #3a444c;
+  --active: #8fb8d9; --active-bg: #15232d; --active-line: #2d4a60;
+  --shadow: 0 1px 0 rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.28);
+}
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f3ea; --s1: #fbf9f3; --s2: #efebe0; --s3: #e6e1d3;
+  --line: #d9d4c5; --line-strong: #a9a393;
+  --text: #1b1e20; --muted: #4f5a63; --faint: #5f6a73;
+  --accent: #1b1e20; --accent-ink: #f6f3ea; --focus: #2f5d82;
+  --pass: #1b6b38; --pass-bg: #e1efe2; --pass-line: #9cc7a6;
+  --warn: #7a4e00; --warn-bg: #f8e8c4; --warn-line: #d8b872;
+  --fail: #9c231c; --fail-bg: #f6d9d5; --fail-line: #dba09a;
+  --idle: #3b4852; --idle-bg: #e3e7ea; --idle-line: #b8c0c6;
+  --active: #1f4c70; --active-bg: #dce9f3; --active-line: #9fbdd6;
+  --shadow: 0 1px 0 rgba(0,0,0,.06), 0 8px 24px rgba(40,36,20,.08);
+}
