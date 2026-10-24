@@ -246,3 +246,24 @@ def test_production_configuration_fails_closed(monkeypatch: pytest.MonkeyPatch):
             webhook_allow_private_hosts=True,
         )
     assert Settings().environment == "development" and datetime.now(UTC)
+
+
+def test_lab_fixture_cache_expires_so_rpo_scenarios_stay_meaningful():
+    from datetime import timedelta
+
+    from afterstate.lab.fixtures import FIXTURE_MAX_AGE_SECONDS, FIXTURE_VERSION, manifest_is_fresh
+
+    now = datetime(2026, 10, 24, 12, 0, tzinfo=UTC)
+
+    def manifest(age_s: float, version: int = FIXTURE_VERSION) -> dict[str, object]:
+        return {"fixture_version": version, "meta": {"built_at": (now - timedelta(seconds=age_s)).isoformat()}}
+
+    assert manifest_is_fresh(manifest(60), now=now)
+    assert manifest_is_fresh(manifest(FIXTURE_MAX_AGE_SECONDS), now=now)
+    assert not manifest_is_fresh(
+        manifest(FIXTURE_MAX_AGE_SECONDS + 1), now=now
+    )  # a 6-day-old set made the RPO check fail
+    assert not manifest_is_fresh(manifest(60, version=FIXTURE_VERSION - 1), now=now)
+    assert not manifest_is_fresh(manifest(-3600), now=now)  # "built in the future": clock skew, do not trust
+    assert not manifest_is_fresh({}, now=now)
+    assert not manifest_is_fresh({"fixture_version": FIXTURE_VERSION, "meta": {"built_at": "garbage"}}, now=now)

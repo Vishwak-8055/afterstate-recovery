@@ -23,6 +23,21 @@ from afterstate.engine.process import base_env, run_command
 from afterstate.security.redact import Redactor
 
 FIXTURE_VERSION = 3
+#: Fixture archives contain timestamps relative to the moment they were built, and the Lab's RPO check
+#: compares them with "now". A cached set older than this is rebuilt so scenarios stay meaningful.
+FIXTURE_MAX_AGE_SECONDS = 12 * 3600
+
+
+def manifest_is_fresh(
+    manifest: dict[str, object], *, now: datetime, max_age_seconds: int = FIXTURE_MAX_AGE_SECONDS
+) -> bool:
+    """True if the cached fixture set is the current version, not too old, and described completely."""
+    try:
+        built = datetime.fromisoformat(str(manifest["meta"]["built_at"]))  # type: ignore[index]
+    except (KeyError, TypeError, ValueError):
+        return False
+    return manifest.get("fixture_version") == FIXTURE_VERSION and 0 <= (now - built).total_seconds() <= max_age_seconds
+
 
 SHOP_DDL = """
 CREATE EXTENSION pgcrypto;
@@ -143,7 +158,7 @@ def build_fixture_set(
         fcntl.flock(lock, fcntl.LOCK_EX)
         if manifest.exists():
             data = json.loads(manifest.read_text())
-            if data.get("fixture_version") == FIXTURE_VERSION and all(
+            if manifest_is_fresh(data, now=datetime.now(UTC)) and all(
                 (out_dir / n).exists() for n in data["files"].values()
             ):
                 return FixtureSet(out_dir, {k: out_dir / v for k, v in data["files"].items()}, data["meta"])

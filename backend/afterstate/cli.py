@@ -92,15 +92,18 @@ def cmd_worker(_: argparse.Namespace) -> int:
 
 def cmd_demo(args: argparse.Namespace) -> int:
     """Everything in one process tree, using local PostgreSQL binaries. For exploration only."""
+    import signal
+
     from afterstate.devcluster import PlatformCluster
 
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))  # lets `finally` stop the throwaway database
     cluster = PlatformCluster()
     url = cluster.start()
     base = Path(cluster.base)
     os.environ.update(
         AFTERSTATE_DATABASE_URL=url,
         AFTERSTATE_ARTIFACT_DIR=str(base / "artifacts"),
-        AFTERSTATE_SCRATCH_DIR=f"/tmp/afs-demo-{secrets.token_hex(3)}",
+        AFTERSTATE_SCRATCH_DIR=f"/tmp/afs-demo-{secrets.token_hex(3)}",  # noqa: S108 - throwaway demo scratch, unguessable suffix
         AFTERSTATE_LOG_JSON="false",
     )
     try:
