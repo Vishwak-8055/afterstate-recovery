@@ -69,6 +69,7 @@ jobs:
         run: npm ci && npx playwright install --with-deps chromium && npm run build
       - name: Playwright against the live stack
         run: |
+          export PYTHON="$(command -v python)"
           export E2E_DUMP="$(python scripts/make_fixture_dump.py)"
           ./scripts/e2e.sh
       - uses: actions/upload-artifact@v4
