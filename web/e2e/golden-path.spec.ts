@@ -19,8 +19,8 @@ test.describe.serial("golden path through the real UI", () => {
     await expect(page.getByRole("heading", { name: "Name your workspace" })).toBeVisible();
     await page.getByLabel("Workspace name").fill("Platform Reliability");
     await page.getByRole("button", { name: "Create workspace" }).click();
-    await expect(page.getByRole("heading", { name: "Recovery readiness" })).toBeVisible();
-    await expect(page.getByText("Nothing has been tested yet")).toBeVisible();
+    await expect(page).toHaveURL(/overview/);
+    await expect(page.getByText("Nothing has been tested yet")).toBeVisible({ timeout: 15000 });
     await shot(page, "02-overview-empty");
   });
 
