@@ -158,13 +158,19 @@ def test_optional_failing_check_is_a_warning_not_a_failure(svc, fixtures):  # ty
 
 
 def test_missed_objective_blocks_success(svc, fixtures):  # type: ignore[no-untyped-def]
-    ws, art, project = _scenario(svc, fixtures, "good", rules=[{"kind": "table", "table": "orders"}], rto_seconds=1)
+    ws, art, project = _scenario(
+        svc,
+        fixtures,
+        "good",
+        rules=[{"kind": "table", "table": "orders"}],
+        rto_seconds=1,
+    )
     run_id = submit(
-    svc,
-    project.id,
-    art.id,
-    fault={"stall_restore_seconds": 1.2},
-    lab_scenario="rto-miss",
+        svc,
+        project.id,
+        art.id,
+        fault={"stall_restore_seconds": 1.2},
+        lab_scenario="rto-miss",
     )
     drain(svc)
     snap = snapshot(svc, run_id)
