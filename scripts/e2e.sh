@@ -16,7 +16,7 @@ for port in 3000 8000; do
   if (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then echo "port $port is already in use; refusing to test against a stale server" >&2; exit 1; fi
 done
 wait_for() { for _ in $(seq 1 90); do curl -fsS "$1" >/dev/null 2>&1 && return 0; sleep 1; done; echo "timed out waiting for $1" >&2; tail -20 "$2" >&2; return 1; }
-setsid bash -c "cd '$ROOT/backend' && exec '$PY' -m afterstate.cli demo --port 8000" >"$LOGS/api.log" 2>&1 & API_PID=$!
+setsid bash -c "cd '$ROOT/backend' && export AFTERSTATE_ALLOWED_ORIGINS='[\"http://127.0.0.1:3000\"]' && exec '$PY' -m afterstate.cli demo --port 8000" >"$LOGS/api.log" 2>&1 & API_PID=$!
 wait_for http://127.0.0.1:8000/api/v1/health/live "$LOGS/api.log"
 # Run the same standalone server the Docker image runs (build first: `npm run build` in web/).
 [ -f "$ROOT/web/.next/standalone/server.js" ] || { echo "run 'npm run build' in web/ first" >&2; exit 1; }
